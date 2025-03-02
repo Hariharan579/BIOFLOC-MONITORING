@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIO FLOC MONITORING</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f7f9;
+            background-image: linear-gradient(45deg, #92c9b3, #f7971e);
+            background-size: 200% 200%;
+            animation: gradientShift 10s infinite alternate;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        th,
+        td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .live-stream-container {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .live-stream {
+            width: 200%;
+            height: 1200px;
+            border: none;
+        }
+
+        @keyframes gradientShift {
+            0% {
+                background-position: 0% 50%;
+            }
+
+            100% {
+                background-position: 100% 50%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>BIO FLOC MONITORING</h1>
+    <table>
+        <tr>
+            <th>Temperature</th>
+            <th>TDS</th>
+            <th>TURBIDITY</th>
+            <th>PH</th>
+            <th>RESULT</th>
+        </tr>
+        <tr id="dataRow">
+            <td>Loading...</td>
+            <td>Loading...</td>
+            <td>Loading...</td>
+            <td>Loading...</td>
+            <td>Loading...</td>
+        </tr>
+    </table>
+    <div class="live-stream-container">
+        <h2>Live Stream</h2>
+        <iframe class="live-stream" id="liveStreamFrame"></iframe>
+    </div>
+    <script>
+        const channelId = '666774';
+        const apiKey = 'LCVF08B4S13Q5FWX';
+
+        const dataRow = document.getElementById('dataRow');
+        const liveStreamContainer = document.querySelector('.live-stream-container');
+        const liveStreamFrame = document.getElementById('liveStreamFrame');
+
+        fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${apiKey}`)
+            .then(response => response.json())
+            .then(data => {
+                const latestEntry = data.feeds[data.feeds.length - 1];
+                const Temp = latestEntry.field1;
+                const BPM = latestEntry.field2;
+                const SPO2 = latestEntry.field3;
+                const PPG = latestEntry.field4;
+                const pH = latestEntry.field6;
+                const result = latestEntry.field5;
+
+                dataRow.innerHTML = `
+                    <td>${Temp}</td>
+                    <td>${BPM}</td>
+                    <td>${SPO2}</td>
+                    <td>${PPG}</td>
+               
+                    <td>${result}</td>
+                `;
+            })
+            .catch(error => {
+                console.error('Error fetching data:', error);
+                dataRow.innerHTML = '<td colspan="6">Error loading data</td>';
+            });
+
+        // You can add code here for the live stream functionality if needed.
+    </script>
+</body>
+
+</html>
