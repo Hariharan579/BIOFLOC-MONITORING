@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BIO FLOC MONITORING</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Include Chart.js -->
     <style>
         body {
             display: flex;
@@ -29,8 +29,7 @@
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
         }
 
-        th,
-        td {
+        th, td {
             border: 1px solid black;
             padding: 8px;
             text-align: center;
@@ -40,38 +39,46 @@
             background-color: #f2f2f2;
         }
 
-        .live-stream-container {
+        /* Grid for side-by-side graphs */
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr); /* 2 columns */
+            gap: 15px;
+            width: 80%;
+            max-width: 700px;
             margin-top: 20px;
-            display: none;
         }
 
-        .live-stream {
-            width: 200%;
-            height: 1200px;
-            border: none;
+        .chart-box {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        canvas {
+            width: 300px !important;
+            height: 200px !important;
         }
 
         @keyframes gradientShift {
-            0% {
-                background-position: 0% 50%;
-            }
-
-            100% {
-                background-position: 100% 50%;
-            }
+            0% { background-position: 0% 50%; }
+            100% { background-position: 100% 50%; }
         }
     </style>
 </head>
 
 <body>
     <h1>BIO FLOC MONITORING</h1>
+    
     <table>
         <tr>
             <th>Temperature</th>
             <th>TDS</th>
-            <th>TURBIDITY</th>
-            <th>PH</th>
-            <th>RESULT</th>
+            <th>Turbidity</th>
+            <th>pH</th>
+            <th>Result</th>
         </tr>
         <tr id="dataRow">
             <td>Loading...</td>
@@ -81,44 +88,100 @@
             <td>Loading...</td>
         </tr>
     </table>
-    <div class="live-stream-container">
-        <h2>Live Stream</h2>
-        <iframe class="live-stream" id="liveStreamFrame"></iframe>
+
+    <!-- Grid Container for Graphs -->
+    <div class="chart-container">
+        <div class="chart-box">
+            <h3>Temperature</h3>
+            <canvas id="tempChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>TDS</h3>
+            <canvas id="tdsChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>Turbidity</h3>
+            <canvas id="turbChart"></canvas>
+        </div>
+        <div class="chart-box">
+            <h3>pH</h3>
+            <canvas id="phChart"></canvas>
+        </div>
     </div>
+
     <script>
         const channelId = '666774';
         const apiKey = 'LCVF08B4S13Q5FWX';
-
         const dataRow = document.getElementById('dataRow');
-        const liveStreamContainer = document.querySelector('.live-stream-container');
-        const liveStreamFrame = document.getElementById('liveStreamFrame');
 
-        fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${apiKey}`)
-            .then(response => response.json())
-            .then(data => {
-                const latestEntry = data.feeds[data.feeds.length - 1];
-                const Temp = latestEntry.field1;
-                const BPM = latestEntry.field2;
-                const SPO2 = latestEntry.field3;
-                const PPG = latestEntry.field4;
-                const pH = latestEntry.field6;
-                const result = latestEntry.field5;
-
-                dataRow.innerHTML = `
-                    <td>${Temp}</td>
-                    <td>${BPM}</td>
-                    <td>${SPO2}</td>
-                    <td>${PPG}</td>
-               
-                    <td>${result}</td>
-                `;
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                dataRow.innerHTML = '<td colspan="6">Error loading data</td>';
+        // Function to create a new Chart instance
+        function createChart(ctx, label, color) {
+            return new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [], // Time labels
+                    datasets: [{ label: label, data: [], borderColor: color, fill: false }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { title: { display: true, text: 'Time' } },
+                        y: { title: { display: true, text: label } }
+                    }
+                }
             });
+        }
 
-        // You can add code here for the live stream functionality if needed.
+        // Create separate charts
+        const tempChart = createChart(document.getElementById('tempChart').getContext('2d'), 'Temperature', 'red');
+        const tdsChart = createChart(document.getElementById('tdsChart').getContext('2d'), 'TDS', 'blue');
+        const turbChart = createChart(document.getElementById('turbChart').getContext('2d'), 'Turbidity', 'green');
+        const phChart = createChart(document.getElementById('phChart').getContext('2d'), 'pH', 'orange');
+
+        function updateData() {
+            fetch(`https://api.thingspeak.com/channels/${channelId}/feeds.json?api_key=${apiKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    const latestEntry = data.feeds[data.feeds.length - 1];
+
+                    const Temp = parseFloat(latestEntry.field1);
+                    const TDS = parseFloat(latestEntry.field2);
+                    const Turbidity = parseFloat(latestEntry.field3);
+                    const pH = parseFloat(latestEntry.field4);
+                    const result = latestEntry.field5;
+                    const time = new Date(latestEntry.created_at).toLocaleTimeString();
+
+                    dataRow.innerHTML = `
+                        <td>${Temp}</td>
+                        <td>${TDS}</td>
+                        <td>${Turbidity}</td>
+                        <td>${pH}</td>
+                        <td>${result}</td>
+                    `;
+
+                    // Update each chart separately
+                    function updateChart(chart, value) {
+                        if (chart.data.labels.length > 10) {
+                            chart.data.labels.shift();
+                            chart.data.datasets[0].data.shift();
+                        }
+                        chart.data.labels.push(time);
+                        chart.data.datasets[0].data.push(value);
+                        chart.update();
+                    }
+
+                    updateChart(tempChart, Temp);
+                    updateChart(tdsChart, TDS);
+                    updateChart(turbChart, Turbidity);
+                    updateChart(phChart, pH);
+                })
+                .catch(error => console.error('Error fetching data:', error));
+        }
+
+        // Update data every 5 seconds
+        updateData();
+        setInterval(updateData, 5000);
     </script>
 </body>
 
